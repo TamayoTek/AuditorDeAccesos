@@ -1,5 +1,6 @@
 from comprobaciones import (
-    ComprobacionIntentosFallidos
+    ComprobacionIntentosFallidos,
+    ComprobacionContrasenaDebil
 )
 
 def main():

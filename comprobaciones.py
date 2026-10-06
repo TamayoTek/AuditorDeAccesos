@@ -3,7 +3,7 @@ import requests
 
 class Comprobacion(ABC):
     def __init__(self, nombre: str):
-        self.nombre = nombre
+        self._nombre = nombre
 
     @property
     def nombre(self) -> str:

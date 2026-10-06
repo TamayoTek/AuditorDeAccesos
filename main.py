@@ -27,7 +27,7 @@ def main():
 
     objetivos_locales = {
         "log": "Recursos/sample_intentos_acceso.log",
-        "diccionario": "Recursos/contraseñas_comunes.txt"
+        "diccionario": "Recursos/contrasenas_comunes.txt"
     }
 
     resultados = auditor.ejecutar_auditoria(objetivos_locales)

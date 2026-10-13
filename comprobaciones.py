@@ -10,20 +10,22 @@ class Comprobacion(ABC):
         return self._nombre
 
     @abstractmethod
-    def ejecutar(self, url: str) -> list[str]:
+    def ejecutar(self) -> list[str]:
+        """Debe devolver una lista de alertas (strings)."""
         pass
 
 class ComprobacionIntentosFallidos(Comprobacion):
-    def __init__(self, nombre: str, umbral: int = 3):
+    def __init__(self, nombre: str, ruta_fichero: str, umbral: int = 3):
         super().__init__(nombre)
+        self._ruta_fichero = ruta_fichero
         self._umbral = umbral
 
-    def ejecutar(self, ruta_fichero: str) -> list[str]:
+    def ejecutar(self) -> list[str]:
         alertas = []
         conteo_fallos = {}
 
         try:
-            with open(ruta_fichero, 'r', encoding='utf-8') as archivo:
+            with open(self._ruta_fichero, 'r', encoding='utf-8') as archivo:
                 for linea in archivo:
                     if "RESULTADO=FALLIDO" in linea:
                         partes = linea.strip().split()
@@ -42,22 +44,22 @@ class ComprobacionIntentosFallidos(Comprobacion):
                     alertas.append(f"[{self._nombre}] ¡Alerta! {objetivo} acumula {fallos} intentos fallidos (supera el umbral de {self._umbral}).")
         
         except FileNotFoundError:
-            alertas.append(f"[{self._nombre}] Error: No se encontró el fichero {ruta_fichero}.")
+            alertas.append(f"[{self._nombre}] Error: No se encontró el fichero {self._ruta_fichero}.")
 
         return alertas
 
 class ComprobacionContrasenaDebil(Comprobacion):
-    
-    def __init__(self, nombre: str, usuarios_prueba: dict[str, str]):
+    def __init__(self, nombre: str, ruta_fichero: str, usuarios_prueba: dict[str, str]):
         super().__init__(nombre)
+        self._ruta_fichero = ruta_fichero
         self._usuarios_prueba = usuarios_prueba  # Diccionario {'usuario': 'contraseña'}
 
-    def ejecutar(self, ruta_fichero: str) -> list[str]:
+    def ejecutar(self) -> list[str]:
         alertas = []
         contraseñas_comunes = set()
 
         try:
-            with open(ruta_fichero, 'r', encoding='utf-8') as f:
+            with open(self._ruta_fichero, 'r', encoding='utf-8') as f:
                 for linea in f:
                     contraseñas_comunes.add(linea.strip())
 
@@ -66,23 +68,24 @@ class ComprobacionContrasenaDebil(Comprobacion):
                     alertas.append(f"[{self._nombre}] ¡Alerta! El usuario '{usuario}' utiliza una contraseña muy débil o común ('{password}').")
         
         except FileNotFoundError:
-            alertas.append(f"[{self._nombre}] Error: No se encontró el fichero de contraseñas {ruta_fichero}.")
+            alertas.append(f"[{self._nombre}] Error: No se encontró el fichero de contraseñas {self._ruta_fichero}.")
 
         return alertas
 
 class ComprobacionCabecerasWeb(Comprobacion):    
-    def __init__(self, nombre: str):
+    def __init__(self, nombre: str, url: str):
         super().__init__(nombre)
+        self._url = url
         self._cabeceras_requeridas = [
             "X-Frame-Options",
             "Strict-Transport-Security",
             "Content-Security-Policy"
         ]
 
-    def ejecutar(self, url: str) -> list[str]:
+    def ejecutar(self) -> list[str]:
         alertas = []
         try:
-            respuesta = requests.get(url, timeout=5)
+            respuesta = requests.get(self._url, timeout=5)
             cabeceras_recibidas = respuesta.headers
 
             faltantes = []
@@ -91,12 +94,12 @@ class ComprobacionCabecerasWeb(Comprobacion):
                     faltantes.append(cabecera)
 
             if faltantes:
-                alertas.append(f"[{self._nombre}] La URL '{url}' carece de las siguientes cabeceras de seguridad: {', '.join(faltantes)}.")
+                alertas.append(f"[{self._nombre}] La URL '{self._url}' carece de las siguientes cabeceras de seguridad: {', '.join(faltantes)}.")
             else:
-                alertas.append(f"[{self._nombre}] La URL '{url}' cumple con todas las cabeceras de seguridad evaluadas.")
+                alertas.append(f"[{self._nombre}] La URL '{self._url}' cumple con todas las cabeceras de seguridad evaluadas.")
 
         except requests.RequestException as e:
-            alertas.append(f"[{self._nombre}] Error al conectar con la URL {url}: {e}")
+            alertas.append(f"[{self._nombre}] Error al conectar con la URL {self._url}: {e}")
 
         return alertas
 
@@ -105,19 +108,11 @@ class Auditor:
     def __init__(self, comprobaciones: list[Comprobacion]):
         self._comprobaciones = comprobaciones
 
-    def ejecutar_auditoria(self, objetivos: dict[str, str]) -> dict[str, list[str]]:
+    def ejecutar_auditoria(self) -> dict[str, list[str]]:
         resultados = {}
+        # Bucle único y plano, sin ningún "if" ni "isinstance". 
+        # Cumple con el polimorfismo puro y permite añadir comprobaciones sin modificar el Auditor.
         for comp in self._comprobaciones:
-            if isinstance(comp, ComprobacionIntentosFallidos):
-                recurso = objetivos.get("log")
-            elif isinstance(comp, ComprobacionContrasenaDebil):
-                recurso = objetivos.get("diccionario")
-            elif isinstance(comp, ComprobacionCabecerasWeb):
-                recurso = objetivos.get("url")
-            else:
-                recurso = None
-
-            if recurso:
-                resultados[comp.nombre] = comp.ejecutar(recurso)
+            resultados[comp.nombre] = comp.ejecutar()
         
         return resultados

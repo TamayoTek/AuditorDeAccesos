@@ -6,7 +6,7 @@ from comprobaciones import (
 )
 
 def main():
-    print("Iniciando auditoria de seguridad...")
+    print("Iniciando auditoria de seguridad...\n")
 
     usuarios_prueba = {
         "usuario1": "123456",
@@ -14,37 +14,46 @@ def main():
         "usuario3": "segura123"
     }
 
-    comp_intentos = ComprobacionIntentosFallidos("Auditoría de Logs de Acceso", umbral=3)
-    comp_pass = ComprobacionContrasenaDebil("Auditoría de Contraseñas Débiles", usuarios_prueba)
-
-    comp_intentos = ComprobacionIntentosFallidos("Auditoría de Logs de Acceso", umbral=3)
-    comp_pass = ComprobacionContrasenaDebil("Auditoría de Contraseñas Débiles", usuarios_prueba)
+    # Instanciación pasando cada objeto su propio recurso o URL de forma encapsulada
+    comp_intentos = ComprobacionIntentosFallidos(
+        "Auditoría de Logs de Acceso", 
+        "Recursos/sample_intentos_acceso.log", 
+        umbral=3
+    )
     
-    comp_web_example = ComprobacionCabecerasWeb("Auditoría Cabeceras (Example)")
-    comp_web_github = ComprobacionCabecerasWeb("Auditoría Cabeceras (GitHub)")
+    comp_pass = ComprobacionContrasenaDebil(
+        "Auditoría de Contraseñas Débiles", 
+        "Recursos/contrasenas_comunes.txt", 
+        usuarios_prueba
+    )
+    
+    comp_web_example = ComprobacionCabecerasWeb(
+        "Auditoría Cabeceras (Example)", 
+        "https://example.com"
+    )
+    
+    comp_web_github = ComprobacionCabecerasWeb(
+        "Auditoría Cabeceras (GitHub)", 
+        "https://github.com"
+    )
 
-    auditor = Auditor([comp_intentos, comp_pass])
+    # Todas las comprobaciones se agrupan y se tratan uniformemente
+    auditor = Auditor([
+        comp_intentos, 
+        comp_pass, 
+        comp_web_example, 
+        comp_web_github
+    ])
 
-    objetivos_locales = {
-        "log": "Recursos/sample_intentos_acceso.log",
-        "diccionario": "Recursos/contraseñas_comunes.txt"
-    }
-
-    resultados = auditor.ejecutar_auditoria(objetivos_locales)
+    resultados = auditor.ejecutar_auditoria()
+    
     for nombre_comp, alertas in resultados.items():
-        print(f"\n--- {nombre_comp} ---")
+        print(f"--- {nombre_comp} ---")
         for alerta in alertas:
             print(f"  * {alerta}")
+        print()
 
-    print(f"\n--- {comp_web_example.nombre} ---")
-    for alerta in comp_web_example.ejecutar("https://example.com"):
-        print(f"  * {alerta}")
-
-    print(f"\n--- {comp_web_github.nombre} ---")
-    for alerta in comp_web_github.ejecutar("https://github.com"):
-        print(f"  * {alerta}")
-
-    print("\n--- AUDITORÍA FINALIZADA ---")
+    print("--- AUDITORÍA FINALIZADA ---")
 
 if __name__ == "__main__":
     main()
